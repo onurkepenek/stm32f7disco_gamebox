@@ -11,6 +11,11 @@ Ana menüden oyun seçilir, her oyundan **EXIT** ile menüye dönülür.
 | **Flappy** | Ekrana ya da FLAP tuşuna dokun, seviye 1–10 (boru hızı / boşluk) |
 | **2048** | Tahtada kaydır ya da yön tuşları |
 | **Mines** | Dokun: aç, basılı tut: bayrak, sayıya dokun: etrafını aç; seviye 1–5 |
+| **Balloons** | Küçük çocuklar için: yükselen balonlara dokunup patlat, kaybetmek yok |
+| **Paint** | Küçük çocuklar için: 12 renk (gökkuşağı kalemi dahil), 3 fırça kalınlığı; resim çıkışta saklanır |
+| **Memory** | Küçük çocuklar için: renkli şekilli kartları eşleştir; 3 çiftten başlayıp 8 çifte kadar zorlaşır |
+
+Çocuk oyunlarında EXIT ve CLEAR, kazara basılmasın diye **basılı tutularak** çalışır.
 
 En yüksek skorlar dahili Flash'ta kalıcı olarak saklanır ve menüdeki kartlarda gösterilir.
 

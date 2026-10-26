@@ -108,16 +108,13 @@ static bool erase_store(void)
   return HAL_FLASHEx_Erase(&er, &bad_sector) == HAL_OK;
 }
 
-bool Scores_Submit(int slot, uint32_t score)
+/* Guncel degerleri Flash'a yeni bir kayit olarak yazar */
+static void save(void)
 {
   Record r;
 
-  if (slot < 0 || slot >= SCORE_SLOTS || score <= best[slot])
-    return false;
-
-  best[slot] = score;
   if (!usable)
-    return true;   /* rekor, ama sadece bu oturum icin */
+    return;        /* sadece bu oturum icin gecerli */
 
   r.magic = RECORD_MAGIC;
   memcpy(r.scores, best, sizeof best);
@@ -138,5 +135,23 @@ bool Scores_Submit(int slot, uint32_t score)
     next_slot++;
 
   HAL_FLASH_Lock();
+}
+
+bool Scores_Submit(int slot, uint32_t score)
+{
+  if (slot < 0 || slot >= SCORE_SLOTS || score <= best[slot])
+    return false;
+
+  best[slot] = score;
+  save();
   return true;
+}
+
+void Scores_Set(int slot, uint32_t value)
+{
+  if (slot < 0 || slot >= SCORE_SLOTS || value == best[slot])
+    return;
+
+  best[slot] = value;
+  save();
 }

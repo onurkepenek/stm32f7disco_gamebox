@@ -41,4 +41,13 @@ void Game2048_DrawIcon(int cx, int cy);
 void Mines_Run(void);
 void Mines_DrawIcon(int cx, int cy);
 
+void Balloons_Run(void);
+void Balloons_DrawIcon(int cx, int cy);
+
+void Paint_Run(void);
+void Paint_DrawIcon(int cx, int cy);
+
+void Memory_Run(void);
+void Memory_DrawIcon(int cx, int cy);
+
 #endif /* GAMES_H */

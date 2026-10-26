@@ -9,14 +9,19 @@
 #include "cmsis_os.h"
 #include <stdio.h>
 
-/* Yeni oyunlar buraya eklenir */
+/* Yeni oyunlar buraya eklenir. Menu bu sirayla gosterir (sayfa basina 6). */
 static const Game games[] = {
-  { "TETRIS", RGB(170, 60, 240), Tetris_DrawIcon, Tetris_Run, SCORE_TETRIS },
-  { "SNAKE",  RGB(40, 220, 60),  Snake_DrawIcon,  Snake_Run,  SCORE_SNAKE  },
-  { "BRICKS", RGB(255, 145, 0),  Bricks_DrawIcon, Bricks_Run, SCORE_BRICKS },
-  { "FLAPPY", RGB(255, 210, 40), Flappy_DrawIcon, Flappy_Run, SCORE_FLAPPY },
-  { "2048",   RGB(237, 194, 46), Game2048_DrawIcon, Game2048_Run, SCORE_2048 },
-  { "MINES",  RGB(240, 50, 50),  Mines_DrawIcon,  Mines_Run,  SCORE_MINES  },
+  /* Kucuk cocuklar icin */
+  { "BALLOONS", RGB(70, 150, 235),  Balloons_DrawIcon, Balloons_Run, SCORE_BALLOONS },
+  { "PAINT",    RGB(255, 100, 180), Paint_DrawIcon,    Paint_Run,    SCORE_NONE     },
+  { "MEMORY",   RGB(50, 90, 200),   Memory_DrawIcon,   Memory_Run,   SCORE_NONE     },
+  /* Diger oyunlar */
+  { "TETRIS",   RGB(170, 60, 240),  Tetris_DrawIcon,   Tetris_Run,   SCORE_TETRIS   },
+  { "SNAKE",    RGB(40, 220, 60),   Snake_DrawIcon,    Snake_Run,    SCORE_SNAKE    },
+  { "BRICKS",   RGB(255, 145, 0),   Bricks_DrawIcon,   Bricks_Run,   SCORE_BRICKS   },
+  { "FLAPPY",   RGB(255, 210, 40),  Flappy_DrawIcon,   Flappy_Run,   SCORE_FLAPPY   },
+  { "2048",     RGB(237, 194, 46),  Game2048_DrawIcon, Game2048_Run, SCORE_2048     },
+  { "MINES",    RGB(240, 50, 50),   Mines_DrawIcon,    Mines_Run,    SCORE_MINES    },
 };
 
 #define GAME_COUNT  ((int)(sizeof games / sizeof games[0]))
@@ -34,11 +39,28 @@ static const Game games[] = {
 
 enum { NAV_PREV, NAV_NEXT, NAV_COUNT };
 static const Button nav[NAV_COUNT] = {
-  [NAV_PREV] = { TILE_X0,                  250, 60, 20, 2, "<" },
-  [NAV_NEXT] = { LCD_W - TILE_X0 - 60,     250, 60, 20, 2, ">" },
+  [NAV_PREV] = { TILE_X0,                  254, 60, 18, 2, "<" },
+  [NAV_NEXT] = { LCD_W - TILE_X0 - 60,     254, 60, 18, 2, ">" },
 };
 
+/* Sag ustte: ekrani 180 derece dondur */
+static const Button rotate_btn = { LCD_W - 56, 6, 48, 46, 1, "" };
+
 static int page;
+
+static void draw_rotate_button(bool active)
+{
+  const Button *b = &rotate_btn;
+  uint16_t bg = active ? COL_BTN_ACTIVE : COL_BTN;
+  int cx = b->x + b->w / 2, cy = b->y + b->h / 2;
+
+  gfx_button(b, NULL, active);
+  /* donen ok: halka, sag ustunde bosluk ve ok ucu */
+  gfx_circle(cx, cy, 14, COL_TEXT);
+  gfx_circle(cx, cy, 10, bg);
+  gfx_fill(cx + 1, cy - 15, 15, 12, bg);
+  gfx_arrow(cx + 12, cy - 6, 8, ARROW_DOWN, COL_TEXT);
+}
 
 static void tile_rect(int slot, int *x, int *y)
 {
@@ -93,15 +115,16 @@ static void draw_menu(void)
   gfx_fill(0, 0, LCD_W, LCD_H, COL_BG);
   gfx_text_centered(LCD_W / 2, 14, "GAME BOX", 3, COL_TITLE);
   gfx_text_centered(LCD_W / 2, 42, "SELECT A GAME", 1, COL_LABEL);
+  draw_rotate_button(false);
 
   for (int slot = 0; slot < PER_PAGE; slot++)
     draw_tile(slot, false);
 
   if (PAGE_COUNT > 1)
   {
-    char buf[8];
+    char buf[24];
     snprintf(buf, sizeof buf, "%d/%d", page + 1, PAGE_COUNT);
-    gfx_text_centered(LCD_W / 2, 253, buf, 2, COL_LABEL);
+    gfx_text_centered(LCD_W / 2, 256, buf, 2, COL_LABEL);
     for (int i = 0; i < NAV_COUNT; i++)
       gfx_button(&nav[i], NULL, false);
   }
@@ -113,6 +136,7 @@ void Menu_Run(void)
   bool prev_touch = false;
 
   Scores_Init();
+  gfx_set_rotation(Scores_Get(SETTING_ROTATION) != 0);
   draw_menu();
 
   for (;;)
@@ -120,6 +144,19 @@ void Menu_Run(void)
     int tx = 0, ty = 0;
     bool touch = Touch_Read(&tx, &ty);
     int slot = touch ? hit_tile(tx, ty) : -1;
+
+    if (touch && !prev_touch && gfx_hit(&rotate_btn, 1, tx, ty) == 0)
+    {
+      /* Ekrani dondur, ayari kalici kaydet */
+      draw_rotate_button(true);
+      gfx_set_rotation(!gfx_get_rotation());
+      Scores_Set(SETTING_ROTATION, gfx_get_rotation() ? 1 : 0);
+      Touch_WaitRelease();
+      pressed_slot = -1;
+      prev_touch = false;
+      draw_menu();
+      continue;
+    }
 
     if (touch && !prev_touch)
     {

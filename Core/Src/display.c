@@ -179,7 +179,14 @@ bool Touch_Read(int *x, int *y)
   *x = rx;
   *y = ry;
 #endif
-  return *x < LCD_W && *y < LCD_H;
+  if (*x >= LCD_W || *y >= LCD_H)
+    return false;
+  if (gfx_get_rotation())
+  {
+    *x = LCD_W - 1 - *x;
+    *y = LCD_H - 1 - *y;
+  }
+  return true;
 }
 
 void Touch_WaitRelease(void)

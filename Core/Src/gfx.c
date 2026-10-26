@@ -7,6 +7,13 @@
 
 #define FB ((volatile uint16_t *)FB_ADDR)
 
+/* Ekran 180 derece donuk mu. Tum cizim gfx_fill'den gectigi icin donusum
+ * sadece burada (ve dokunmatikte) yapilir; oyunlar bundan habersizdir. */
+static bool rotated;
+
+void gfx_set_rotation(bool on) { rotated = on; }
+bool gfx_get_rotation(void)    { return rotated; }
+
 void gfx_fill(int x, int y, int w, int h, uint16_t c)
 {
   if (x < 0) { w += x; x = 0; }
@@ -16,6 +23,12 @@ void gfx_fill(int x, int y, int w, int h, uint16_t c)
   if (w <= 0 || h <= 0)
     return;
 
+  if (rotated)
+  {
+    x = LCD_W - x - w;
+    y = LCD_H - y - h;
+  }
+
   for (int j = 0; j < h; j++)
   {
     volatile uint16_t *p = FB + (y + j) * LCD_W + x;
@@ -23,6 +36,20 @@ void gfx_fill(int x, int y, int w, int h, uint16_t c)
       p[i] = c;
   }
 }
+
+/* Tek piksel okuma/yazma (mantiksal koordinat, donusum dahil) */
+static volatile uint16_t *pixel_addr(int x, int y)
+{
+  if (rotated)
+  {
+    x = LCD_W - 1 - x;
+    y = LCD_H - 1 - y;
+  }
+  return FB + y * LCD_W + x;
+}
+
+uint16_t gfx_get_pixel(int x, int y)          { return *pixel_addr(x, y); }
+void     gfx_put_pixel(int x, int y, uint16_t c) { *pixel_addr(x, y) = c; }
 
 void gfx_outline(int x, int y, int w, int h, uint16_t c)
 {
@@ -156,6 +183,91 @@ int gfx_hit(const Button *buttons, int count, int x, int y)
       return i;
   }
   return -1;
+}
+
+void gfx_hold_draw(HoldButton *h)
+{
+  h->start = 0;
+  h->shown = 0;
+  gfx_button(&h->btn, NULL, false);
+}
+
+bool gfx_hold_update(HoldButton *h, bool pressed, uint32_t now)
+{
+  const Button *b = &h->btn;
+  int bar_w = b->w - 4;
+
+  if (!pressed)
+  {
+    if (h->start)
+      gfx_hold_draw(h);      /* erken birakildi: cubugu sil */
+    return false;
+  }
+
+  if (!h->start)
+  {
+    h->start = now | 1;      /* 0 "basili degil" anlamina geliyor */
+    gfx_button(b, NULL, true);
+  }
+
+  uint32_t held = now - h->start;
+  int w = (int)((uint64_t)held * (uint32_t)bar_w / h->hold_ms);
+  if (w > bar_w)
+    w = bar_w;
+  if (w > h->shown)
+  {
+    gfx_fill(b->x + 2 + h->shown, b->y + b->h - 6, w - h->shown, 4, COL_TITLE);
+    h->shown = w;
+  }
+
+  if (held >= h->hold_ms)
+  {
+    gfx_hold_draw(h);
+    return true;
+  }
+  return false;
+}
+
+int gfx_isqrt(int v)
+{
+  int r = 0;
+  if (v <= 0)
+    return 0;
+  while ((r + 1) * (r + 1) <= v)
+    r++;
+  return r;
+}
+
+void gfx_circle(int cx, int cy, int r, uint16_t c)
+{
+  for (int dy = -r; dy <= r; dy++)
+  {
+    int w = gfx_isqrt(r * r - dy * dy);
+    gfx_fill(cx - w, cy + dy, 2 * w + 1, 1, c);
+  }
+}
+
+static const char *const star_rows[11] = {
+  ".....#.....", "....###....", "....###....", "###########", ".#########.",
+  "..#######..", "...#####...", "..#######..", "..###.###..", ".##.....##.",
+  ".#.......#.",
+};
+
+void gfx_star(int x, int y, int s, uint16_t c)
+{
+  for (int r = 0; r < 11; r++)
+  {
+    /* ardisik '#' gruplarini tek dikdortgenle ciz */
+    int k = 0;
+    while (k < 11)
+    {
+      if (star_rows[r][k] != '#') { k++; continue; }
+      int k0 = k;
+      while (k < 11 && star_rows[r][k] == '#')
+        k++;
+      gfx_fill(x + k0 * s, y + r * s, (k - k0) * s, s, c);
+    }
+  }
 }
 
 static uint32_t rng_state = 0x1234567;

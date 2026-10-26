@@ -25,7 +25,13 @@
 
 enum { ARROW_UP, ARROW_RIGHT, ARROW_DOWN, ARROW_LEFT };
 
+/* Ekrani 180 derece dondur (cizim ve dokunmatik birlikte) */
+void     gfx_set_rotation(bool on);
+bool     gfx_get_rotation(void);
+
 void     gfx_fill(int x, int y, int w, int h, uint16_t c);
+uint16_t gfx_get_pixel(int x, int y);
+void     gfx_put_pixel(int x, int y, uint16_t c);
 void     gfx_outline(int x, int y, int w, int h, uint16_t c);
 void     gfx_panel(int x, int y, int w, int h);
 void     gfx_block(int x, int y, int size, uint16_t c);   /* kabartmali kare */
@@ -43,6 +49,26 @@ typedef struct { int x, y, w, h, scale; const char *label; } Button;
 void gfx_button(const Button *b, const char *label, bool active);
 /* Dokunulan butonun indeksi, yoksa -1 */
 int  gfx_hit(const Button *buttons, int count, int x, int y);
+
+/* Basili tutulunca calisan buton (kucuk cocuklar kazara basmasin diye).
+ * Tutarken alt kenarda bir dolum cubugu ilerler. */
+typedef struct
+{
+  Button   btn;
+  uint32_t hold_ms;
+  uint32_t start;      /* 0: basili degil */
+  int      shown;      /* cizilmis dolum genisligi */
+} HoldButton;
+
+void gfx_hold_draw(HoldButton *h);
+/* Her karede cagrilir; pressed: parmak butonun ustunde. Sure dolunca true. */
+bool gfx_hold_update(HoldButton *h, bool pressed, uint32_t now);
+
+int  gfx_isqrt(int v);
+
+/* Sekiller (cocuk oyunlari icin) */
+void gfx_circle(int cx, int cy, int r, uint16_t c);
+void gfx_star(int x, int y, int scale, uint16_t c);   /* 11x11 desen, sol ust kose */
 
 void     rand_seed(uint32_t s);
 uint32_t rand_next(void);
