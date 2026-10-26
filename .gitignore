@@ -1,0 +1,8 @@
+# STM32CubeIDE derleme ciktilari
+Debug/
+Release/
+
+# Eclipse / IDE
+.metadata/
+*.bak
+*.tmp
