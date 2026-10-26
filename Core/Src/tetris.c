@@ -20,7 +20,13 @@
 #define BX      175                     /* tahta sol ust kosesi */
 #define BY      6
 
-#define PANEL_X 313
+/* Asagidaki konumlar "kontroller solda" duzeni icin. Kontroller sagdayken
+ * (varsayilan) kontrol tuslari ile bilgi paneli yer degistirir; tahta ortada
+ * oldugu icin yerinde kalir. Kaydirmalar layout_init()'te hesaplanir. */
+static int ctrl_dx, info_dx;
+
+#define PANEL_X0 313
+#define PANEL_X (PANEL_X0 + info_dx)
 #define PANEL_W 160
 #define PANEL_CX (PANEL_X + PANEL_W / 2)
 
@@ -31,22 +37,36 @@
 enum { BTN_ROT, BTN_LEFT, BTN_RIGHT, BTN_DOWN, BTN_DROP, BTN_PAUSE, BTN_EXIT,
        BTN_LV_DOWN, BTN_LV_UP, BTN_COUNT, BTN_NONE = -1 };
 
-static const Button buttons[BTN_COUNT] = {
+static const Button buttons_base[BTN_COUNT] = {
   [BTN_ROT]   = {  8,   8, 160,  70, 2, "ROTATE" },
   [BTN_LEFT]  = {  8,  86,  76,  80, 4, "<" },
   [BTN_RIGHT] = { 92,  86,  76,  80, 4, ">" },
   [BTN_DOWN]  = {  8, 174,  76,  92, 2, "DOWN" },
   [BTN_DROP]  = { 92, 174,  76,  92, 2, "DROP" },
-  [BTN_PAUSE] = { PANEL_X + 4,  238, 74, 26, 2, "PAUSE" },
-  [BTN_EXIT]  = { PANEL_X + 82, 238, 74, 26, 2, "EXIT" },
+  [BTN_PAUSE] = { PANEL_X0 + 4,  238, 74, 26, 2, "PAUSE" },
+  [BTN_EXIT]  = { PANEL_X0 + 82, 238, 74, 26, 2, "EXIT" },
   /* Baslangic seviyesi secimi, sadece oyun disinda gorunur */
-  [BTN_LV_DOWN] = { PANEL_X + 6,           LEVEL_Y - 4, 32, 22, 2, "<" },
-  [BTN_LV_UP]   = { PANEL_X + PANEL_W - 38, LEVEL_Y - 4, 32, 22, 2, ">" },
+  [BTN_LV_DOWN] = { PANEL_X0 + 6,           LEVEL_Y - 4, 32, 22, 2, "<" },
+  [BTN_LV_UP]   = { PANEL_X0 + PANEL_W - 38, LEVEL_Y - 4, 32, 22, 2, ">" },
 };
+static Button buttons[BTN_COUNT];
 
 static bool is_level_button(int i)
 {
   return i == BTN_LV_DOWN || i == BTN_LV_UP;
+}
+
+static void layout_init(void)
+{
+  bool right = !Settings_Get(SETTING_CONTROLS_LEFT);
+  ctrl_dx = right ? 304 : 0;     /* kontroller 8..168 -> 312..472 */
+  info_dx = right ? -306 : 0;    /* bilgi paneli 313..473 -> 7..167 */
+
+  for (int i = 0; i < BTN_COUNT; i++)
+  {
+    buttons[i] = buttons_base[i];
+    buttons[i].x += (i <= BTN_DROP) ? ctrl_dx : info_dx;
+  }
 }
 
 static bool paused;
@@ -533,6 +553,7 @@ void Tetris_Run(void)
   bool prev_touch = false;
   uint32_t repeat_at = 0;
 
+  layout_init();
   build_shapes();
   memset(board, 0, sizeof board);
   paused = false;

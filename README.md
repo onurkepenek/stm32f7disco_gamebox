@@ -17,6 +17,11 @@ Ana menüden oyun seçilir, her oyundan **EXIT** ile menüye dönülür.
 
 Çocuk oyunlarında EXIT ve CLEAR, kazara basılmasın diye **basılı tutularak** çalışır.
 
+Ana menünün sağ üstünde iki ayar tuşu vardır (seçimler Flash'ta saklanır):
+- **Kontrol tarafı:** Tetris, Snake, Bricks, Flappy, 2048 ve Mines'ta kontrol
+  panelini sağa (varsayılan) ya da sola alır.
+- **Döndür:** Ekranı 180° çevirir.
+
 En yüksek skorlar dahili Flash'ta kalıcı olarak saklanır ve menüdeki kartlarda gösterilir.
 
 ## Donanım

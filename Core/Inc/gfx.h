@@ -58,6 +58,8 @@ typedef struct
   uint32_t hold_ms;
   uint32_t start;      /* 0: basili degil */
   int      shown;      /* cizilmis dolum genisligi */
+  /* Istege bagli: butonun uzerine simge cizer (etiket yerine) */
+  void   (*decorate)(const Button *b, bool active);
 } HoldButton;
 
 void gfx_hold_draw(HoldButton *h);

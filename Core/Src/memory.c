@@ -30,7 +30,7 @@
 #define COL_STAR    RGB(255, 210, 40)
 #define COL_MATCHED RGB(255, 200, 40)
 
-static HoldButton exit_btn = { { LCD_W - 80, 4, 76, 28, 2, "EXIT" }, 1500, 0, 0 };
+static HoldButton exit_btn = { { LCD_W - 80, 4, 76, 28, 2, "EXIT" }, 1500, 0, 0, NULL };
 
 /* Tur: kac cift, kac sutun x satir */
 typedef struct { uint8_t pairs, cols, rows; } Round;

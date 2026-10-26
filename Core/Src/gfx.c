@@ -190,6 +190,8 @@ void gfx_hold_draw(HoldButton *h)
   h->start = 0;
   h->shown = 0;
   gfx_button(&h->btn, NULL, false);
+  if (h->decorate)
+    h->decorate(&h->btn, false);
 }
 
 bool gfx_hold_update(HoldButton *h, bool pressed, uint32_t now)
@@ -208,6 +210,8 @@ bool gfx_hold_update(HoldButton *h, bool pressed, uint32_t now)
   {
     h->start = now | 1;      /* 0 "basili degil" anlamina geliyor */
     gfx_button(b, NULL, true);
+    if (h->decorate)
+      h->decorate(b, true);
   }
 
   uint32_t held = now - h->start;

@@ -20,7 +20,11 @@
 #define TILE     58
 #define GAP      6
 #define BOARD_W  (N * TILE + (N + 1) * GAP)     /* 262 */
-#define BX       (LCD_W - BOARD_W - 6)
+/* Konumlar "kontroller solda" duzeni icin; kontroller sagdayken (varsayilan)
+ * panel saga, tahta sola kayar (layout_init). */
+static int panel_dx, field_dx;
+
+#define BX       (LCD_W - BOARD_W - 6 + field_dx)
 #define BY       ((LCD_H - BOARD_W) / 2)
 
 #define SWIPE_MIN 25                            /* px */
@@ -37,7 +41,7 @@
 enum { BTN_UP, BTN_RIGHT, BTN_DOWN, BTN_LEFT, BTN_NEW, BTN_EXIT, BTN_COUNT, BTN_NONE = -1 };
 
 /* Yon tuslari ARROW_xxx sirasiyla ayni: indeks = yon */
-static const Button buttons[BTN_COUNT] = {
+static const Button buttons_base[BTN_COUNT] = {
   [BTN_UP]    = {  72,  44, 58, 56, 2, "" },
   [BTN_RIGHT] = { 136, 104, 58, 56, 2, "" },
   [BTN_DOWN]  = {  72, 164, 58, 56, 2, "" },
@@ -45,9 +49,23 @@ static const Button buttons[BTN_COUNT] = {
   [BTN_NEW]   = {   4, 226, 96, 40, 2, "NEW" },
   [BTN_EXIT]  = { 104, 226, 96, 40, 2, "EXIT" },
 };
+static Button buttons[BTN_COUNT];
 
-#define STAT_SCORE_X  52
-#define STAT_BEST_X   152
+static void layout_init(void)
+{
+  bool right = !Settings_Get(SETTING_CONTROLS_LEFT);
+  panel_dx = right ? 276 : 0;    /* panel 4..200 -> 280..476 */
+  field_dx = right ? -206 : 0;   /* tahta 212..474 -> 6..268 */
+
+  for (int i = 0; i < BTN_COUNT; i++)
+  {
+    buttons[i] = buttons_base[i];
+    buttons[i].x += panel_dx;
+  }
+}
+
+#define STAT_SCORE_X  (52 + panel_dx)
+#define STAT_BEST_X   (152 + panel_dx)
 
 /* ------------------------------------------------------------------------- */
 /* Oyun durumu                                                               */
@@ -332,6 +350,7 @@ void Game2048_Run(void)
   bool swiping = false;
   int sx = 0, sy = 0, lx = 0, ly = 0;
 
+  layout_init();
   best = Scores_Get(SCORE_2048);
   draw_static();
   new_game();
@@ -384,7 +403,7 @@ void Game2048_Run(void)
         do_move(btn);
 
       /* Tahtada kaydirma */
-      if (tap && btn == BTN_NONE && tx >= BX)
+      if (tap && btn == BTN_NONE && tx >= BX && tx < BX + BOARD_W)
       {
         swiping = true;
         sx = lx = tx;

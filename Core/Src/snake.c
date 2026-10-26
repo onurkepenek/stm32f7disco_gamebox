@@ -17,7 +17,12 @@
 #define CELL    12
 #define COLS    24
 #define ROWS    22
-#define FX      182                     /* oyun alani sol ust kosesi */
+/* Konumlar "kontroller solda" duzeni icin; kontroller sagdayken (varsayilan)
+ * panel saga, oyun alani sola kayar (layout_init). */
+static int panel_dx, field_dx;
+
+#define FX0     182
+#define FX      (FX0 + field_dx)        /* oyun alani sol ust kosesi */
 #define FY      4
 #define MAXLEN  (COLS * ROWS)
 
@@ -28,14 +33,15 @@
 /* Baslangic / game over kutusu (seviye secici bunun icinde) */
 #define OV_W    220
 #define OV_H    132
-#define OV_X    (FX + (COLS * CELL - OV_W) / 2)
+#define OV_X0   (FX0 + (COLS * CELL - OV_W) / 2)
+#define OV_X    (OV_X0 + field_dx)
 #define OV_Y    (FY + (ROWS * CELL - OV_H) / 2)
 #define OV_CX   (OV_X + OV_W / 2)
 
 enum { BTN_UP, BTN_LEFT, BTN_RIGHT, BTN_DOWN, BTN_PAUSE, BTN_EXIT,
        BTN_LV_DOWN, BTN_LV_UP, BTN_COUNT, BTN_NONE = -1 };
 
-static const Button buttons[BTN_COUNT] = {
+static const Button buttons_base[BTN_COUNT] = {
   [BTN_UP]      = {  60,  38, 52, 52, 3, "" },
   [BTN_LEFT]    = {   4,  94, 52, 52, 3, "" },
   [BTN_RIGHT]   = { 116,  94, 52, 52, 3, "" },
@@ -43,13 +49,27 @@ static const Button buttons[BTN_COUNT] = {
   [BTN_PAUSE]   = {   4, 214, 80, 50, 2, "PAUSE" },
   [BTN_EXIT]    = {  88, 214, 80, 50, 2, "EXIT" },
   /* Sadece oyun disinda, kutunun icinde gorunur */
-  [BTN_LV_DOWN] = { OV_X + 24,        OV_Y + 62, 36, 28, 2, "<" },
-  [BTN_LV_UP]   = { OV_X + OV_W - 60, OV_Y + 62, 36, 28, 2, ">" },
+  [BTN_LV_DOWN] = { OV_X0 + 24,        OV_Y + 62, 36, 28, 2, "<" },
+  [BTN_LV_UP]   = { OV_X0 + OV_W - 60, OV_Y + 62, 36, 28, 2, ">" },
 };
+static Button buttons[BTN_COUNT];
 
 static bool is_level_button(int i)
 {
   return i == BTN_LV_DOWN || i == BTN_LV_UP;
+}
+
+static void layout_init(void)
+{
+  bool right = !Settings_Get(SETTING_CONTROLS_LEFT);
+  panel_dx = right ? 304 : 0;    /* panel 4..168 -> 308..472 */
+  field_dx = right ? -176 : 0;   /* alan 182..470 -> 6..294 */
+
+  for (int i = 0; i < BTN_COUNT; i++)
+  {
+    buttons[i] = buttons_base[i];
+    buttons[i].x += is_level_button(i) ? field_dx : panel_dx;
+  }
 }
 
 /* Yonler: 0 yukari, 1 sag, 2 asagi, 3 sol */
@@ -144,9 +164,9 @@ static void draw_field(void)
 }
 
 /* Ust bilgi satiri: SCORE / BEST / LEVEL sutunlari */
-#define STAT_SCORE_X  30
-#define STAT_BEST_X   86
-#define STAT_LEVEL_X  142
+#define STAT_SCORE_X  (30 + panel_dx)
+#define STAT_BEST_X   (86 + panel_dx)
+#define STAT_LEVEL_X  (142 + panel_dx)
 
 static void draw_value(int cx, uint32_t v)
 {
@@ -398,6 +418,7 @@ void Snake_Run(void)
   int prev_btn = BTN_NONE;
   bool prev_touch = false;
 
+  layout_init();
   paused = false;
   state = ST_TITLE;
   score = 0;

@@ -21,7 +21,12 @@
 #define CELL    22
 #define MCOLS   13
 #define MROWS   12
-#define FX      182                     /* tahta */
+/* Konumlar "kontroller solda" duzeni icin; kontroller sagdayken (varsayilan)
+ * panel saga, tahta sola kayar (layout_init). */
+static int panel_dx, field_dx;
+
+#define FX0     182
+#define FX      (FX0 + field_dx)        /* tahta */
 #define FY      4
 #define FW      (MCOLS * CELL)
 #define FH      (MROWS * CELL)
@@ -30,7 +35,8 @@
 
 #define OV_W    220
 #define OV_H    132
-#define OV_X    (FX + (FW - OV_W) / 2)
+#define OV_X0   (FX0 + (FW - OV_W) / 2)
+#define OV_X    (OV_X0 + field_dx)
 #define OV_Y    (FY + (FH - OV_H) / 2)
 #define OV_CX   (OV_X + OV_W / 2)
 
@@ -41,18 +47,32 @@
 
 enum { BTN_FLAG, BTN_NEW, BTN_EXIT, BTN_LV_DOWN, BTN_LV_UP, BTN_COUNT, BTN_NONE = -1 };
 
-static const Button buttons[BTN_COUNT] = {
+static const Button buttons_base[BTN_COUNT] = {
   [BTN_FLAG]    = {  4,  40, 164, 64, 2, "FLAG OFF" },
   [BTN_NEW]     = {  4, 214,  80, 50, 2, "NEW" },
   [BTN_EXIT]    = { 88, 214,  80, 50, 2, "EXIT" },
   /* Sadece oyun disinda, kutunun icinde gorunur */
-  [BTN_LV_DOWN] = { OV_X + 24,        OV_Y + 62, 36, 28, 2, "<" },
-  [BTN_LV_UP]   = { OV_X + OV_W - 60, OV_Y + 62, 36, 28, 2, ">" },
+  [BTN_LV_DOWN] = { OV_X0 + 24,        OV_Y + 62, 36, 28, 2, "<" },
+  [BTN_LV_UP]   = { OV_X0 + OV_W - 60, OV_Y + 62, 36, 28, 2, ">" },
 };
+static Button buttons[BTN_COUNT];
 
 static bool is_level_button(int i)
 {
   return i == BTN_LV_DOWN || i == BTN_LV_UP;
+}
+
+static void layout_init(void)
+{
+  bool right = !Settings_Get(SETTING_CONTROLS_LEFT);
+  panel_dx = right ? 304 : 0;    /* panel 4..168 -> 308..472 */
+  field_dx = right ? -176 : 0;   /* tahta 182..468 -> 6..292 */
+
+  for (int i = 0; i < BTN_COUNT; i++)
+  {
+    buttons[i] = buttons_base[i];
+    buttons[i].x += is_level_button(i) ? field_dx : panel_dx;
+  }
 }
 
 #define MAX_LEVEL 5
@@ -148,9 +168,9 @@ static void draw_board(void)
       draw_cell(r, c);
 }
 
-#define STAT_MINES_X  30
-#define STAT_TIME_X   86
-#define STAT_BEST_X   142
+#define STAT_MINES_X  (30 + panel_dx)
+#define STAT_TIME_X   (86 + panel_dx)
+#define STAT_BEST_X   (142 + panel_dx)
 
 static void draw_value(int cx, uint32_t v)
 {
@@ -187,10 +207,10 @@ static void draw_static(void)
   gfx_text_centered(STAT_TIME_X, 6, "TIME", 1, COL_LABEL);
   gfx_text_centered(STAT_BEST_X, 6, "BEST", 1, COL_LABEL);
 
-  gfx_text_centered(86, 128, "TAP TO OPEN", 1, COL_LABEL);
-  gfx_text_centered(86, 146, "HOLD TO FLAG", 1, COL_LABEL);
-  gfx_text_centered(86, 172, "TAP A NUMBER TO", 1, COL_LABEL);
-  gfx_text_centered(86, 184, "OPEN AROUND IT", 1, COL_LABEL);
+  gfx_text_centered(86 + panel_dx, 128, "TAP TO OPEN", 1, COL_LABEL);
+  gfx_text_centered(86 + panel_dx, 146, "HOLD TO FLAG", 1, COL_LABEL);
+  gfx_text_centered(86 + panel_dx, 172, "TAP A NUMBER TO", 1, COL_LABEL);
+  gfx_text_centered(86 + panel_dx, 184, "OPEN AROUND IT", 1, COL_LABEL);
 
   for (int i = 0; i < BTN_COUNT; i++)
     if (!is_level_button(i))
@@ -476,6 +496,7 @@ void Mines_Run(void)
   uint32_t press_tick = 0;
   bool hold_done = false;
 
+  layout_init();
   state = ST_TITLE;
   flag_mode = false;
   mine_count = level_mines();

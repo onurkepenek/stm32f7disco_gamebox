@@ -17,7 +17,12 @@
 /* Yerlesim                                                                  */
 /* ------------------------------------------------------------------------- */
 
-#define FX      180                     /* oyun alani */
+/* Konumlar "kontroller solda" duzeni icin; kontroller sagdayken (varsayilan)
+ * panel saga, oyun alani sola kayar (layout_init). */
+static int panel_dx, field_dx;
+
+#define FX0     180
+#define FX      (FX0 + field_dx)        /* oyun alani */
 #define FY      4
 #define FW      290
 #define FH      264
@@ -42,25 +47,40 @@
 
 #define OV_W    220
 #define OV_H    132
-#define OV_X    (FX + (FW - OV_W) / 2)
+#define OV_X0   (FX0 + (FW - OV_W) / 2)
+#define OV_X    (OV_X0 + field_dx)
 #define OV_Y    (FY + (FH - OV_H) / 2)
 #define OV_CX   (OV_X + OV_W / 2)
 
 enum { BTN_LEFT, BTN_RIGHT, BTN_PAUSE, BTN_EXIT, BTN_LV_DOWN, BTN_LV_UP, BTN_COUNT, BTN_NONE = -1 };
 
-static const Button buttons[BTN_COUNT] = {
+static const Button buttons_base[BTN_COUNT] = {
   [BTN_LEFT]    = {  4,  62, 80, 142, 2, "" },
   [BTN_RIGHT]   = { 88,  62, 80, 142, 2, "" },
   [BTN_PAUSE]   = {  4, 214, 80,  50, 2, "PAUSE" },
   [BTN_EXIT]    = { 88, 214, 80,  50, 2, "EXIT" },
   /* Sadece oyun disinda, kutunun icinde gorunur */
-  [BTN_LV_DOWN] = { OV_X + 24,        OV_Y + 62, 36, 28, 2, "<" },
-  [BTN_LV_UP]   = { OV_X + OV_W - 60, OV_Y + 62, 36, 28, 2, ">" },
+  [BTN_LV_DOWN] = { OV_X0 + 24,        OV_Y + 62, 36, 28, 2, "<" },
+  [BTN_LV_UP]   = { OV_X0 + OV_W - 60, OV_Y + 62, 36, 28, 2, ">" },
 };
+static Button buttons[BTN_COUNT];
 
 static bool is_level_button(int i)
 {
   return i == BTN_LV_DOWN || i == BTN_LV_UP;
+}
+
+static void layout_init(void)
+{
+  bool right = !Settings_Get(SETTING_CONTROLS_LEFT);
+  panel_dx = right ? 304 : 0;    /* panel 4..168 -> 308..472 */
+  field_dx = right ? -174 : 0;   /* alan 180..470 -> 6..296 */
+
+  for (int i = 0; i < BTN_COUNT; i++)
+  {
+    buttons[i] = buttons_base[i];
+    buttons[i].x += is_level_button(i) ? field_dx : panel_dx;
+  }
 }
 
 /* '.' bos, '1' normal, '2' iki vurusta kirilan */
@@ -333,13 +353,14 @@ static void update_bonus_status(bool force)
       continue;
     shown_secs[b] = secs;
 
-    int x = status_x[b] - 26;
+    int cx = status_x[b] + panel_dx;
+    int x = cx - 26;
     if (secs > 0)
     {
       char buf[12];
       snprintf(buf, sizeof buf, "%s %d", bonus_info[b].name, secs);
       gfx_fill(x, STATUS_Y, 52, 16, bonus_info[b].color);
-      gfx_text_centered(status_x[b], STATUS_Y + 4, buf, 1, COL_TEXT);
+      gfx_text_centered(cx, STATUS_Y + 4, buf, 1, COL_TEXT);
     }
     else
     {
@@ -366,9 +387,9 @@ static void draw_field(void)
   draw_ball();
 }
 
-#define STAT_SCORE_X  30
-#define STAT_LIVES_X  86
-#define STAT_LEVEL_X  142
+#define STAT_SCORE_X  (30 + panel_dx)
+#define STAT_LIVES_X  (86 + panel_dx)
+#define STAT_LEVEL_X  (142 + panel_dx)
 
 static void draw_value(int cx, uint32_t v)
 {
@@ -837,6 +858,7 @@ void Bricks_Run(void)
   bool prev_touch = false;
   uint32_t last_frame = HAL_GetTick();
 
+  layout_init();
   paused = false;
   state = ST_TITLE;
   score = 0;
@@ -892,7 +914,7 @@ void Bricks_Run(void)
         move_paddle(pad_x - PAD_BTN_SPEED * dt);
       else if (btn == BTN_RIGHT)
         move_paddle(pad_x + PAD_BTN_SPEED * dt);
-      else if (touch && btn == BTN_NONE && tx >= FX - 10)
+      else if (touch && btn == BTN_NONE && tx >= FX - 10 && tx < FX + FW + 10)
       {
         /* Parmaga dogru sinirli hizla kay, aninda atlama */
         float delta = ((float)tx - pad_w / 2.0f) - pad_x;

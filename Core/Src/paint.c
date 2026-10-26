@@ -50,8 +50,8 @@ static const Button size_buttons[SIZE_BTN_COUNT] = {
   { 424, 100, 52, 44, 1, "" },
 };
 
-static HoldButton clear_btn = { { 424, 156, 52, 52, 1, "CLEAR" }, 1200, 0, 0 };
-static HoldButton exit_btn  = { { 424, 216, 52, 52, 1, "EXIT" },  1500, 0, 0 };
+static HoldButton clear_btn = { { 424, 156, 52, 52, 1, "CLEAR" }, 1200, 0, 0, NULL };
+static HoldButton exit_btn  = { { 424, 216, 52, 52, 1, "EXIT" },  1500, 0, 0, NULL };
 
 /* ------------------------------------------------------------------------- */
 /* Durum                                                                     */

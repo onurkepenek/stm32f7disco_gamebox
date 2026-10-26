@@ -43,18 +43,31 @@ static const Button nav[NAV_COUNT] = {
   [NAV_NEXT] = { LCD_W - TILE_X0 - 60,     254, 60, 18, 2, ">" },
 };
 
-/* Sag ustte: ekrani 180 derece dondur */
-static const Button rotate_btn = { LCD_W - 56, 6, 48, 46, 1, "" };
+/* Sag ustte, ikisi de basili tutularak: ekrani 180 derece dondur,
+ * oyun kontrollerini saga/sola al */
+static void draw_rotate_icon(const Button *b, bool active);
+static void draw_side_icon(const Button *b, bool active);
+static HoldButton rotate_btn = { { LCD_W - 56,  6, 48, 46, 1, "" }, 1200, 0, 0, draw_rotate_icon };
+static HoldButton side_btn   = { { LCD_W - 110, 6, 48, 46, 1, "" }, 1200, 0, 0, draw_side_icon };
 
 static int page;
 
-static void draw_rotate_button(bool active)
+/* Simge: kucuk bir ekran; kontrollerin oldugu taraf dolu serit */
+static void draw_side_icon(const Button *b, bool active)
 {
-  const Button *b = &rotate_btn;
-  uint16_t bg = active ? COL_BTN_ACTIVE : COL_BTN;
-  int cx = b->x + b->w / 2, cy = b->y + b->h / 2;
+  int x = b->x + 9, y = b->y + 10, w = 30, h = 22;
+  bool left = Settings_Get(SETTING_CONTROLS_LEFT);
 
-  gfx_button(b, NULL, active);
+  (void)active;
+  gfx_outline(x, y, w, h, COL_TEXT);
+  gfx_fill(left ? x + 2 : x + w - 11, y + 2, 9, h - 4, COL_TITLE);
+}
+
+static void draw_rotate_icon(const Button *b, bool active)
+{
+  uint16_t bg = active ? COL_BTN_ACTIVE : COL_BTN;
+  int cx = b->x + b->w / 2, cy = b->y + b->h / 2 - 2;
+
   /* donen ok: halka, sag ustunde bosluk ve ok ucu */
   gfx_circle(cx, cy, 14, COL_TEXT);
   gfx_circle(cx, cy, 10, bg);
@@ -115,7 +128,8 @@ static void draw_menu(void)
   gfx_fill(0, 0, LCD_W, LCD_H, COL_BG);
   gfx_text_centered(LCD_W / 2, 14, "GAME BOX", 3, COL_TITLE);
   gfx_text_centered(LCD_W / 2, 42, "SELECT A GAME", 1, COL_LABEL);
-  draw_rotate_button(false);
+  gfx_hold_draw(&rotate_btn);
+  gfx_hold_draw(&side_btn);
 
   for (int slot = 0; slot < PER_PAGE; slot++)
     draw_tile(slot, false);
@@ -136,7 +150,7 @@ void Menu_Run(void)
   bool prev_touch = false;
 
   Scores_Init();
-  gfx_set_rotation(Scores_Get(SETTING_ROTATION) != 0);
+  gfx_set_rotation(Settings_Get(SETTING_ROTATED));
   draw_menu();
 
   for (;;)
@@ -145,16 +159,28 @@ void Menu_Run(void)
     bool touch = Touch_Read(&tx, &ty);
     int slot = touch ? hit_tile(tx, ty) : -1;
 
-    if (touch && !prev_touch && gfx_hit(&rotate_btn, 1, tx, ty) == 0)
+    bool on_rotate = touch && gfx_hit(&rotate_btn.btn, 1, tx, ty) == 0;
+    if (gfx_hold_update(&rotate_btn, on_rotate, HAL_GetTick()))
     {
-      /* Ekrani dondur, ayari kalici kaydet */
-      draw_rotate_button(true);
+      /* Basili tutuldu: ekrani dondur, ayari kalici kaydet */
       gfx_set_rotation(!gfx_get_rotation());
-      Scores_Set(SETTING_ROTATION, gfx_get_rotation() ? 1 : 0);
+      Settings_Set(SETTING_ROTATED, gfx_get_rotation());
       Touch_WaitRelease();
       pressed_slot = -1;
       prev_touch = false;
       draw_menu();
+      continue;
+    }
+
+    bool on_side = touch && gfx_hit(&side_btn.btn, 1, tx, ty) == 0;
+    if (gfx_hold_update(&side_btn, on_side, HAL_GetTick()))
+    {
+      /* Basili tutuldu: oyun kontrollerini saga/sola al */
+      Settings_Set(SETTING_CONTROLS_LEFT, !Settings_Get(SETTING_CONTROLS_LEFT));
+      gfx_hold_draw(&side_btn);      /* simge yeni tarafi gostersin */
+      Touch_WaitRelease();
+      pressed_slot = -1;
+      prev_touch = false;
       continue;
     }
 

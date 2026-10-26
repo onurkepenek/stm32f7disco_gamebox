@@ -155,3 +155,14 @@ void Scores_Set(int slot, uint32_t value)
   best[slot] = value;
   save();
 }
+
+bool Settings_Get(uint32_t flag)
+{
+  return (best[SETTING_FLAGS] & flag) != 0;
+}
+
+void Settings_Set(uint32_t flag, bool on)
+{
+  uint32_t v = best[SETTING_FLAGS];
+  Scores_Set(SETTING_FLAGS, on ? (v | flag) : (v & ~flag));
+}

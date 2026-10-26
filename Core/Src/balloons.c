@@ -38,7 +38,7 @@ static const uint16_t balloon_colors[] = {
 };
 #define NCOLORS ((int)(sizeof balloon_colors / sizeof balloon_colors[0]))
 
-static HoldButton exit_btn = { { LCD_W - 80, 4, 76, 28, 2, "EXIT" }, 1500, 0, 0 };
+static HoldButton exit_btn = { { LCD_W - 80, 4, 76, 28, 2, "EXIT" }, 1500, 0, 0, NULL };
 
 /* ------------------------------------------------------------------------- */
 /* Durum                                                                     */
