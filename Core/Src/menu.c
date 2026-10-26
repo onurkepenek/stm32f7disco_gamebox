@@ -63,16 +63,46 @@ static void draw_side_icon(const Button *b, bool active)
   gfx_fill(left ? x + 2 : x + w - 11, y + 2, 9, h - 4, COL_TITLE);
 }
 
+/* Saat yonunde donen ok: ustu acik halka, acikligin sol ucunda saga
+ * bakan ok ucu */
 static void draw_rotate_icon(const Button *b, bool active)
 {
-  uint16_t bg = active ? COL_BTN_ACTIVE : COL_BTN;
-  int cx = b->x + b->w / 2, cy = b->y + b->h / 2 - 2;
+  const int ro = 13, ri = 9, rm = 11;     /* dis, ic, orta yaricap */
+  int cx = b->x + b->w / 2, cy = b->y + 21;
 
-  /* donen ok: halka, sag ustunde bosluk ve ok ucu */
-  gfx_circle(cx, cy, 14, COL_TEXT);
-  gfx_circle(cx, cy, 10, bg);
-  gfx_fill(cx + 1, cy - 15, 15, 12, bg);
-  gfx_arrow(cx + 12, cy - 6, 8, ARROW_DOWN, COL_TEXT);
+  (void)active;
+
+  /* Halka. (r+0.5)^2 ~ r^2+r esigi kenarlari yuvarlatir; eksenlerde
+   * tek piksellik cikinti kalmaz. Her satir tek parcalar halinde cizilir. */
+  for (int dy = -ro - 1; dy <= ro + 1; dy++)
+  {
+    bool in_run = false;      /* dx negatif olabildigi icin ayri bayrak */
+    int run = 0;
+    for (int dx = -ro - 1; dx <= ro + 2; dx++)
+    {
+      int d = dx * dx + dy * dy;
+      bool gap = dy < 0 && dx >= -1 && dx <= 9;
+      bool on = dx <= ro + 1 && d <= ro * ro + ro && d >= ri * ri - ri && !gap;
+      if (on && !in_run)
+      {
+        run = dx;
+        in_run = true;
+      }
+      else if (!on && in_run)
+      {
+        gfx_fill(cx + run, cy + dy, dx - run, 1, COL_TEXT);
+        in_run = false;
+      }
+    }
+  }
+
+  /* Ok ucu: halkanin ust ucunda, saga (saat yonune) bakan ucgen */
+  int base = cx - 1, tip = cx + 7, ay = cy - rm;
+  for (int x = base; x <= tip; x++)
+  {
+    int half = 6 * (tip - x) / (tip - base);
+    gfx_fill(x, ay - half, 1, 2 * half + 1, COL_TEXT);
+  }
 }
 
 static void tile_rect(int slot, int *x, int *y)

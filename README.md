@@ -3,6 +3,10 @@
 STM32F746G-DISCO kartının 4.3" dokunmatik ekranı için oyun koleksiyonu.
 Ana menüden oyun seçilir, her oyundan **EXIT** ile menüye dönülür.
 
+![Ana menü](docs/menu.png)
+
+*Ana menü: karttaki framebuffer'dan (SDRAM) alınmış ekran görüntüsü, 2x büyütülmüş.*
+
 | Oyun | Kontrol |
 |---|---|
 | **Tetris** | Dokunmatik butonlar (döndür, sola/sağa, hızlı düşür, bırak), ghost parça, başlangıç seviyesi 1–15 |
@@ -23,6 +27,11 @@ Ana menünün sağ üstünde iki ayar tuşu vardır (seçimler Flash'ta saklanı
 - **Döndür:** Ekranı 180° çevirir.
 
 En yüksek skorlar dahili Flash'ta kalıcı olarak saklanır ve menüdeki kartlarda gösterilir.
+
+Oyundan EXIT ile çıkıp geri dönünce oyun kaldığı yerden devam eder (kart açık
+kaldığı sürece). Aksiyon oyunları duraklatılmış olarak açılır; duraklatma
+kutusundaki **NEW** ile baştan başlanabilir. Dışarıda geçen süre bonus
+sürelerinden ve Mines saatinden sayılmaz.
 
 ## Donanım
 

@@ -35,7 +35,7 @@ static int ctrl_dx, info_dx;
 #define LEVEL_Y 218
 
 enum { BTN_ROT, BTN_LEFT, BTN_RIGHT, BTN_DOWN, BTN_DROP, BTN_PAUSE, BTN_EXIT,
-       BTN_LV_DOWN, BTN_LV_UP, BTN_COUNT, BTN_NONE = -1 };
+       BTN_LV_DOWN, BTN_LV_UP, BTN_NEW, BTN_COUNT, BTN_NONE = -1 };
 
 static const Button buttons_base[BTN_COUNT] = {
   [BTN_ROT]   = {  8,   8, 160,  70, 2, "ROTATE" },
@@ -48,6 +48,8 @@ static const Button buttons_base[BTN_COUNT] = {
   /* Baslangic seviyesi secimi, sadece oyun disinda gorunur */
   [BTN_LV_DOWN] = { PANEL_X0 + 6,           LEVEL_Y - 4, 32, 22, 2, "<" },
   [BTN_LV_UP]   = { PANEL_X0 + PANEL_W - 38, LEVEL_Y - 4, 32, 22, 2, ">" },
+  /* Sadece duraklatma kutusunda (tahtanin ortasinda) gorunur */
+  [BTN_NEW]     = { BX + 20, BY + 80 + 44, 90, 30, 2, "NEW" },
 };
 static Button buttons[BTN_COUNT];
 
@@ -65,7 +67,10 @@ static void layout_init(void)
   for (int i = 0; i < BTN_COUNT; i++)
   {
     buttons[i] = buttons_base[i];
-    buttons[i].x += (i <= BTN_DROP) ? ctrl_dx : info_dx;
+    if (i <= BTN_DROP)
+      buttons[i].x += ctrl_dx;
+    else if (i != BTN_NEW)       /* NEW tahtanin ustunde, tahta kaymiyor */
+      buttons[i].x += info_dx;
   }
 }
 
@@ -326,7 +331,8 @@ static void draw_static(void)
   gfx_text_centered(PANEL_CX, LEVEL_Y - 20, "LEVEL", 2, COL_LABEL);
 
   for (int i = 0; i < BTN_COUNT; i++)
-    draw_button(i, false);
+    if (i != BTN_NEW)
+      draw_button(i, false);
 
   invalidate_board();
 }
@@ -355,8 +361,9 @@ static void draw_overlay(int kind)
       gfx_text_centered(cx, y + 82, "TAP TO RETRY", 1, COL_LABEL);
       break;
     case OV_PAUSED:
-      gfx_text_centered(cx, y + 26, "PAUSED", 3, COL_TITLE);
-      gfx_text_centered(cx, y + 64, "PRESS PLAY", 1, COL_LABEL);
+      gfx_text_centered(cx, y + 10, "PAUSED", 3, COL_TITLE);
+      draw_button(BTN_NEW, false);
+      gfx_text_centered(cx, y + 84, "PRESS PLAY", 1, COL_LABEL);
       break;
     default:
       gfx_text_centered(cx, y + 10, "TETRIS", 3, COL_TITLE);
@@ -555,16 +562,30 @@ void Tetris_Run(void)
 
   layout_init();
   build_shapes();
-  memset(board, 0, sizeof board);
-  paused = false;
-  state = ST_TITLE;
-  score = lines = 0;
-  level = start_level;
 
-  draw_static();
-  render_board();
-  update_stats(true);
-  draw_overlay(OV_TITLE);
+  if (state == ST_PLAYING)
+  {
+    /* Yarida birakilan oyun: oldugu gibi ciz, duraklatilmis olarak goster */
+    paused = true;
+    draw_static();
+    show_level_buttons(false);
+    render_board();
+    update_stats(true);
+    draw_overlay(OV_PAUSED);
+  }
+  else
+  {
+    memset(board, 0, sizeof board);
+    paused = false;
+    state = ST_TITLE;
+    score = lines = 0;
+    level = start_level;
+
+    draw_static();
+    render_board();
+    update_stats(true);
+    draw_overlay(OV_TITLE);
+  }
 
   for (;;)
   {
@@ -575,11 +596,21 @@ void Tetris_Run(void)
 
     if (state == ST_PLAYING && is_level_button(btn))
       btn = BTN_NONE;   /* oyun sirasinda gizliler */
+    if (btn == BTN_NEW && !(state == ST_PLAYING && paused))
+      btn = BTN_NONE;   /* sadece duraklatma kutusunda */
     bool pressed = (btn != prev_btn);
 
     if (pressed && btn == BTN_EXIT)
     {
+      if (state == ST_PLAYING)
+        paused = true;  /* oyun saklanir, donunce kaldigi yerden */
       return;           /* ana menuye don */
+    }
+    else if (pressed && btn == BTN_NEW)
+    {
+      paused = false;
+      draw_button(BTN_PAUSE, false);
+      start_game();
     }
     else if (pressed && btn == BTN_PAUSE && state == ST_PLAYING)
     {
@@ -628,10 +659,11 @@ void Tetris_Run(void)
       }
     }
 
+    /* NEW tahtanin ustunde: yeni oyun basladiktan sonra yeniden cizilmesin */
     if (pressed)
     {
-      if (prev_btn != BTN_NONE) draw_button(prev_btn, false);
-      if (btn != BTN_NONE)      draw_button(btn, true);
+      if (prev_btn != BTN_NONE && prev_btn != BTN_NEW) draw_button(prev_btn, false);
+      if (btn != BTN_NONE && btn != BTN_NEW)           draw_button(btn, true);
     }
     prev_btn = btn;
     prev_touch = touch;

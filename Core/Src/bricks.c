@@ -52,7 +52,8 @@ static int panel_dx, field_dx;
 #define OV_Y    (FY + (FH - OV_H) / 2)
 #define OV_CX   (OV_X + OV_W / 2)
 
-enum { BTN_LEFT, BTN_RIGHT, BTN_PAUSE, BTN_EXIT, BTN_LV_DOWN, BTN_LV_UP, BTN_COUNT, BTN_NONE = -1 };
+enum { BTN_LEFT, BTN_RIGHT, BTN_PAUSE, BTN_EXIT, BTN_LV_DOWN, BTN_LV_UP, BTN_NEW,
+       BTN_COUNT, BTN_NONE = -1 };
 
 static const Button buttons_base[BTN_COUNT] = {
   [BTN_LEFT]    = {  4,  62, 80, 142, 2, "" },
@@ -62,6 +63,8 @@ static const Button buttons_base[BTN_COUNT] = {
   /* Sadece oyun disinda, kutunun icinde gorunur */
   [BTN_LV_DOWN] = { OV_X0 + 24,        OV_Y + 62, 36, 28, 2, "<" },
   [BTN_LV_UP]   = { OV_X0 + OV_W - 60, OV_Y + 62, 36, 28, 2, ">" },
+  /* Sadece duraklatma kutusunda gorunur */
+  [BTN_NEW]     = { OV_X0 + (OV_W - 90) / 2, OV_Y + 50, 90, 30, 2, "NEW" },
 };
 static Button buttons[BTN_COUNT];
 
@@ -79,7 +82,7 @@ static void layout_init(void)
   for (int i = 0; i < BTN_COUNT; i++)
   {
     buttons[i] = buttons_base[i];
-    buttons[i].x += is_level_button(i) ? field_dx : panel_dx;
+    buttons[i].x += (is_level_button(i) || i == BTN_NEW) ? field_dx : panel_dx;
   }
 }
 
@@ -420,7 +423,7 @@ static void draw_static(void)
   gfx_text_centered(STAT_LEVEL_X, 6, "LEVEL", 1, COL_LABEL);
 
   for (int i = 0; i < BTN_COUNT; i++)
-    if (!is_level_button(i))
+    if (!is_level_button(i) && i != BTN_NEW)
       draw_button(i, false);
 }
 
@@ -447,8 +450,9 @@ static void draw_overlay(int kind)
   switch (kind)
   {
     case OV_PAUSED:
-      gfx_text_centered(OV_CX, OV_Y + 42, "PAUSED", 3, COL_TITLE);
-      gfx_text_centered(OV_CX, OV_Y + 80, "PRESS PLAY", 1, COL_LABEL);
+      gfx_text_centered(OV_CX, OV_Y + 14, "PAUSED", 3, COL_TITLE);
+      draw_button(BTN_NEW, false);
+      gfx_text_centered(OV_CX, OV_Y + 100, "PRESS PLAY", 1, COL_LABEL);
       return;
     case OV_OVER:
       gfx_text_centered(OV_CX, OV_Y + 8, "GAME OVER", 3, COL_TITLE);
@@ -859,21 +863,37 @@ void Bricks_Run(void)
   uint32_t last_frame = HAL_GetTick();
 
   layout_init();
-  paused = false;
-  state = ST_TITLE;
-  score = 0;
   best = Scores_Get(SCORE_BRICKS);
-  lives = 3;
-  level = start_level;
-  pad_w = PW_NORMAL;
-  memset(capsules, 0, sizeof capsules);
-  memset(bonus_until, 0, sizeof bonus_until);
 
-  draw_static();
-  draw_field();
-  update_stats(true);
-  update_bonus_status(true);
-  draw_overlay(OV_TITLE);
+  if (state == ST_PLAYING)
+  {
+    /* Yarida birakilan oyun: oldugu gibi ciz, duraklatilmis olarak goster.
+     * paused_at cikista kaydedildi; PLAY'e basinca disarida gecen sure
+     * bonus surelerinden sayilmaz. */
+    paused = true;
+    draw_static();
+    draw_field();
+    update_stats(true);
+    update_bonus_status(true);
+    draw_overlay(OV_PAUSED);
+  }
+  else
+  {
+    paused = false;
+    state = ST_TITLE;
+    score = 0;
+    lives = 3;
+    level = start_level;
+    pad_w = PW_NORMAL;
+    memset(capsules, 0, sizeof capsules);
+    memset(bonus_until, 0, sizeof bonus_until);
+
+    draw_static();
+    draw_field();
+    update_stats(true);
+    update_bonus_status(true);
+    draw_overlay(OV_TITLE);
+  }
 
   for (;;)
   {
@@ -888,11 +908,24 @@ void Bricks_Run(void)
 
     if (state == ST_PLAYING && is_level_button(btn))
       btn = BTN_NONE;   /* oyun sirasinda gizliler */
+    if (btn == BTN_NEW && !(state == ST_PLAYING && paused))
+      btn = BTN_NONE;   /* sadece duraklatma kutusunda */
     bool pressed = (btn != prev_btn);
 
     if (pressed && btn == BTN_EXIT)
     {
+      if (state == ST_PLAYING && !paused)
+      {
+        paused = true;  /* oyun saklanir, donunce kaldigi yerden */
+        paused_at = now;
+      }
       return;           /* ana menuye don */
+    }
+    else if (pressed && btn == BTN_NEW)
+    {
+      paused = false;
+      draw_button(BTN_PAUSE, false);
+      start_game();
     }
     else if (pressed && btn == BTN_PAUSE && state == ST_PLAYING)
     {
@@ -948,8 +981,9 @@ void Bricks_Run(void)
 
     if (pressed)
     {
-      if (prev_btn != BTN_NONE) draw_button(prev_btn, false);
-      if (btn != BTN_NONE)      draw_button(btn, true);
+      /* NEW oyun alaninin ustunde: yeni oyun basladiktan sonra yeniden cizilmesin */
+      if (prev_btn != BTN_NONE && prev_btn != BTN_NEW) draw_button(prev_btn, false);
+      if (btn != BTN_NONE && btn != BTN_NEW)           draw_button(btn, true);
     }
     prev_btn = btn;
     prev_touch = touch;

@@ -78,6 +78,7 @@ static uint32_t shown[N][N];
 static uint32_t score, best;
 static int state;
 static bool reached_2048;
+static bool has_game;     /* RAM'de devam ettirilebilir bir oyun var */
 static bool new_best;
 
 /* ------------------------------------------------------------------------- */
@@ -297,6 +298,7 @@ static void submit_score(void)
 
 static void new_game(void)
 {
+  has_game = true;
   memset(grid, 0, sizeof grid);
   score = 0;
   reached_2048 = false;
@@ -353,7 +355,17 @@ void Game2048_Run(void)
   layout_init();
   best = Scores_Get(SCORE_2048);
   draw_static();
-  new_game();
+
+  /* Yarida birakilan oyun varsa kaldigi yerden devam (NEW ile bastan) */
+  if (has_game && state != ST_OVER)
+  {
+    state = ST_PLAYING;   /* 2048 kutlamasinda cikildiysa da devam */
+    render(true);
+  }
+  else
+  {
+    new_game();
+  }
   update_stats(true);
 
   for (;;)

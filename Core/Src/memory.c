@@ -31,6 +31,7 @@
 #define COL_MATCHED RGB(255, 200, 40)
 
 static HoldButton exit_btn = { { LCD_W - 80, 4, 76, 28, 2, "EXIT" }, 1500, 0, 0, NULL };
+static HoldButton new_btn  = { { LCD_W - 160, 4, 76, 28, 2, "NEW" },  1500, 0, 0, NULL };
 
 /* Tur: kac cift, kac sutun x satir */
 typedef struct { uint8_t pairs, cols, rows; } Round;
@@ -53,6 +54,7 @@ static uint32_t flip_back_at;
 static int pairs_left;
 static int round_idx;
 static uint32_t stars;
+static bool has_game;     /* RAM'de devam ettirilebilir bir oyun var */
 
 /* ------------------------------------------------------------------------- */
 /* Sekiller                                                                  */
@@ -218,7 +220,8 @@ static void draw_counter(void)
   gfx_text(40, 8, buf, 3, COL_TEXT);
 }
 
-static void start_round(void)
+/* Turun kart sayisi ve yerlesimi (karistirmadan) */
+static void round_layout(void)
 {
   const Round *rd = &rounds[round_idx];
   int avail_w = LCD_W - 2 * MARGIN;
@@ -233,6 +236,20 @@ static void start_round(void)
     card_w = card_h * 5 / 4;
   grid_x = (LCD_W - (cols * card_w + (cols - 1) * GAP)) / 2;
   grid_y = TOP + MARGIN + (avail_h - (rows * card_h + (rows - 1) * GAP)) / 2;
+}
+
+static void draw_round(void)
+{
+  gfx_fill(0, TOP, LCD_W, LCD_H - TOP, COL_TABLE);
+  for (int i = 0; i < ncards; i++)
+    draw_card(i);
+}
+
+static void start_round(void)
+{
+  const Round *rd = &rounds[round_idx];
+
+  round_layout();
 
   /* Her turda farkli sekiller: tum sekilleri karistirip ilk "pairs" tanesini al */
   uint8_t pool[NSYMBOLS];
@@ -254,10 +271,9 @@ static void start_round(void)
   memset(card_state, CARD_HIDDEN, sizeof card_state);
   first = second = -1;
   pairs_left = rd->pairs;
+  has_game = true;
 
-  gfx_fill(0, TOP, LCD_W, LCD_H - TOP, COL_TABLE);
-  for (int i = 0; i < ncards; i++)
-    draw_card(i);
+  draw_round();
 }
 
 /* Tur bitti: buyuk yildiz ve konfeti, sonra bir sonraki tur */
@@ -340,14 +356,27 @@ void Memory_Run(void)
 {
   bool prev_touch = false;
 
-  round_idx = 0;
-  stars = 0;
+  if (!has_game)
+  {
+    round_idx = 0;
+    stars = 0;
+  }
 
   gfx_fill(0, 0, LCD_W, TOP, COL_BAR);
   gfx_star(6, 7, 2, COL_STAR);
   draw_counter();
+  gfx_hold_draw(&new_btn);
   gfx_hold_draw(&exit_btn);
-  start_round();
+
+  if (has_game)
+  {
+    round_layout();       /* kaldigi tur, kartlar oldugu gibi */
+    draw_round();
+  }
+  else
+  {
+    start_round();
+  }
 
   for (;;)
   {
@@ -356,8 +385,25 @@ void Memory_Run(void)
     uint32_t now = HAL_GetTick();
 
     bool on_exit = touch && gfx_hit(&exit_btn.btn, 1, tx, ty) == 0;
+    bool on_new = touch && gfx_hit(&new_btn.btn, 1, tx, ty) == 0;
     if (gfx_hold_update(&exit_btn, on_exit, now))
-      return;               /* ana menuye don */
+    {
+      /* Yanlis eslesme beklerken cikildiysa o iki karti kapat */
+      if (second >= 0)
+      {
+        card_state[first] = card_state[second] = CARD_HIDDEN;
+        first = second = -1;
+      }
+      return;               /* ana menuye don; oyun saklanir */
+    }
+    if (gfx_hold_update(&new_btn, on_new, now))
+    {
+      /* Bastan: ilk tur, yildizlar sifir */
+      round_idx = 0;
+      stars = 0;
+      draw_counter();
+      start_round();
+    }
 
     /* Yanlis eslesme: bekleme bitince ikisini de geri cevir */
     if (second >= 0 && (int32_t)(now - flip_back_at) >= 0)
@@ -367,7 +413,7 @@ void Memory_Run(void)
       first = second = -1;
     }
 
-    if (touch && !prev_touch && !on_exit)
+    if (touch && !prev_touch && !on_exit && !on_new)
     {
       int i = card_at(tx, ty);
       if (i >= 0)

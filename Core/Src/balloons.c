@@ -388,7 +388,7 @@ void Balloons_Run(void)
   memset(bursts, 0, sizeof bursts);
   for (int i = 0; i < LANES; i++)
     balloons[i].drawn_cy = INT32_MIN;
-  pops = 0;
+  /* pops sifirlanmaz: yildiz sayaci oyundan cikip donunce devam eder */
   next_spawn = last_frame;
 
   build_sky();

@@ -91,6 +91,7 @@ static int mine_count, flags, opened;
 static bool mines_placed;
 static bool flag_mode;
 static uint32_t start_tick, elapsed;    /* saniye */
+static uint32_t left_at;                /* oyundan cikis ani (saat duraklatma) */
 static uint32_t level = 1, score, best;
 static bool new_best;
 static int state;
@@ -497,19 +498,32 @@ void Mines_Run(void)
   bool hold_done = false;
 
   layout_init();
-  state = ST_TITLE;
-  flag_mode = false;
-  mine_count = level_mines();
-  flags = 0;
-  elapsed = 0;
   best = Scores_Get(SCORE_MINES);
-  memset(is_open, 0, sizeof is_open);
-  memset(is_flag, 0, sizeof is_flag);
 
-  draw_static();
-  draw_board();
-  update_stats(true);
-  draw_overlay(OV_TITLE);
+  if (state == ST_PLAYING)
+  {
+    /* Yarida birakilan oyun: tahta aynen, disarida gecen sure saate eklenmez */
+    if (mines_placed)
+      start_tick += HAL_GetTick() - left_at;
+    draw_static();
+    draw_board();
+    update_stats(true);
+  }
+  else
+  {
+    state = ST_TITLE;
+    flag_mode = false;
+    mine_count = level_mines();
+    flags = 0;
+    elapsed = 0;
+    memset(is_open, 0, sizeof is_open);
+    memset(is_flag, 0, sizeof is_flag);
+
+    draw_static();
+    draw_board();
+    update_stats(true);
+    draw_overlay(OV_TITLE);
+  }
 
   for (;;)
   {
@@ -525,6 +539,7 @@ void Mines_Run(void)
 
     if (pressed && btn == BTN_EXIT)
     {
+      left_at = now;    /* oyun saklanir; donunce saat kaldigi yerden */
       return;           /* ana menuye don */
     }
     else if (pressed && btn == BTN_NEW)
